@@ -27,18 +27,20 @@ func main () {
     }
     defer db.Close()
 
-    pc := make(chan string)
-
     // Parse command line arguments
-    splitNumber := flag.Int("file", 2, "Number of chunks to split a file into.")
-    numGoroutines := flag.Int("db", 15, "Number of concurrent database writes.")
+    splitNumber := flag.Int("f", 8, "Number of chunks to split a file into")
+    numGoroutines := flag.Int("db", 16, "Number of concurrent database writes")
+    rowsPerQuery := flag.Int("q", 1024, "Number of rows per query")
+    channelLength := flag.Int("cl", 512, "Buffered channel length")
     flag.Parse()
     fileName := flag.Args()[0]
+
+    pc := make(chan string, *channelLength)
 
     // Launch goroutines that write lines to database
     for i := 1; i <= *numGoroutines; i++ {
         wg.Add(1)
-        go addRow(db, pc)
+        go addRow(db, pc, *rowsPerQuery)
     }
 
     // Open file for reading
@@ -140,7 +142,7 @@ func launchReader (fileName string, from int64, to int64, pc chan string) {
 }
 
 // Writes Product object to the database
-func addRow (db *sql.DB, pc chan string) {
+func addRow (db *sql.DB, pc chan string, rowsPerQuery int) {
     var err error
     var lastInsertedId int
     var counter int
@@ -151,7 +153,7 @@ func addRow (db *sql.DB, pc chan string) {
     for p := range pc {
         s = append(s, p)
         counter++
-        if counter == 1000 {
+        if counter == rowsPerQuery {
             err = db.QueryRow("INSERT INTO ParsedProducts (PRODUCT_ID, PRODUCT_NAME, BRAND_NAME, PRODUCT_SIZE, SOURCE_ID, SOURCE_PRODUCT_ID, PRODUCT_URI, PRODUCT_DESCRIPTION, PRODUCT_IMAGE_URI) VALUES " + strings.Join(s, ", ") + " RETURNING 1").Scan(&lastInsertedId)
             if err != nil {
                 fmt.Printf("QueryRow: %s\n", err)

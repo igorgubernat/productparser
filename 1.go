@@ -9,10 +9,8 @@ import (
     "strings"
     "sync"
     "time"
+    "flag"
 )
-
-const numGoroutines = 15
-const numRecordsPerInsert = 100
 
 var wg sync.WaitGroup
 
@@ -25,14 +23,19 @@ func main () {
     }
     defer db.Close()
 
-    var c int//line counter
+    var c int // line counter
+
+    numGoroutines := flag.Int("db", 16, "Number of concurrent database writes")
+    rowsPerQuery := flag.Int("q", 1024, "Number of rows per query")
+    channelLength := flag.Int("cl", 512, "Buffered channel length")
+    flag.Parse()
 
     scanner := bufio.NewScanner(os.Stdin)
-    pc := make(chan string)
+    pc := make(chan string, *channelLength)
 
-    for i := 1; i <= numGoroutines; i++ {
+    for i := 1; i <= *numGoroutines; i++ {
         wg.Add(1)
-        go addRow(db, pc)
+        go addRow(db, pc, *rowsPerQuery)
     }
 
     for scanner.Scan() {
@@ -56,14 +59,7 @@ func main () {
     fmt.Printf("\nTime elapsed: %v\n", t1.Sub(t0))
 }
 
-func checkConv(err error, s string, c int) {
-    if err != nil {
-        fmt.Printf("Convert failure: %s to int at %d\n", s, c)
-        os.Exit(1)
-    }
-}
-
-func addRow (db *sql.DB, pc chan string) {
+func addRow (db *sql.DB, pc chan string, rowsPerQuery int) {
     var err error
     var lastInsertedId int
     var counter int
@@ -74,7 +70,7 @@ func addRow (db *sql.DB, pc chan string) {
     for p := range pc {
         s = append(s, p)
         counter++
-        if counter == numRecordsPerInsert {
+        if counter == rowsPerQuery {
             err = db.QueryRow("INSERT INTO ParsedProducts (PRODUCT_ID, PRODUCT_NAME, BRAND_NAME, PRODUCT_SIZE, SOURCE_ID, SOURCE_PRODUCT_ID, PRODUCT_URI, PRODUCT_DESCRIPTION, PRODUCT_IMAGE_URI) VALUES " + strings.Join(s, ", ") + " RETURNING 1").Scan(&lastInsertedId)
             if err != nil {
                 fmt.Printf("QueryRow: %s\n", err)
