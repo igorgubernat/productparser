@@ -40,7 +40,7 @@ func main () {
     // Launch goroutines that write lines to database
     for i := 1; i <= *numGoroutines; i++ {
         wg.Add(1)
-        go addRow(db, pc, *rowsPerQuery)
+        go addRow(db, pc, *rowsPerQuery, i)
     }
 
     // Open file for reading
@@ -131,7 +131,7 @@ func launchReader (fileName string, from int64, to int64, pc chan string) {
         // Fields 0 and 4 are numbers, so they should not be surrounded by single quotes
         s = fmt.Sprintf("(%s, '%s', '%s', '%s', %s, '%s', '%s', '%s', '%s')", fields[0], fields[1], fields[2], fields[3], fields[4], fields[5], fields[6], fields[7], fields[8])
         c++
-        if c % 1000 == 0 { // Progress indicator
+        if c % 10000 == 0 { // Progress indicator
             fmt.Print("*")
         }
         pc <- s
@@ -142,7 +142,7 @@ func launchReader (fileName string, from int64, to int64, pc chan string) {
 }
 
 // Writes Product object to the database
-func addRow (db *sql.DB, pc chan string, rowsPerQuery int) {
+func addRow (db *sql.DB, pc chan string, rowsPerQuery int, i int) {
     var err error
     var lastInsertedId int
     var counter int
@@ -151,6 +151,7 @@ func addRow (db *sql.DB, pc chan string, rowsPerQuery int) {
     defer wg.Done()
 
     for p := range pc {
+
         s = append(s, p)
         counter++
         if counter == rowsPerQuery {
