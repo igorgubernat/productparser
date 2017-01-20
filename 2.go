@@ -81,10 +81,10 @@ func main () {
 // Returns the byte position of the nearest newline after the argument n
 // so that no line is split in the middle
 func splitAt (file *os.File, n int64, fileSize int64) int64 {
-    if n >= fileSize - 5 {
+    if n >= fileSize - 100 {
         return fileSize
     }
-    b := make([]byte, 5)
+    b := make([]byte, 100)
     counter := n
     for {
         _, err := file.ReadAt(b, counter)
@@ -97,8 +97,8 @@ func splitAt (file *os.File, n int64, fileSize int64) int64 {
                 return counter + int64(i)
             }
         }
-        counter += 5
-        if counter >= fileSize - 5 {
+        counter += 100
+        if counter >= fileSize - 100 {
             return fileSize
         }
     }
