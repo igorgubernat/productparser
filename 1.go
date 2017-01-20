@@ -47,9 +47,6 @@ func main () {
         if c == 1 {
             continue
         }
-        if c % 1000 == 0 {
-            fmt.Print("*")
-        }
         pc <- s
     }
 

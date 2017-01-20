@@ -13,7 +13,6 @@ import (
 )
 
 var wg, parseWg sync.WaitGroup
-var c int
 
 func main () {
 
@@ -40,7 +39,7 @@ func main () {
     // Launch goroutines that write lines to database
     for i := 1; i <= *numGoroutines; i++ {
         wg.Add(1)
-        go addRow(db, pc, *rowsPerQuery, i)
+        go addRow(db, pc, *rowsPerQuery)
     }
 
     // Open file for reading
@@ -130,10 +129,6 @@ func launchReader (fileName string, from int64, to int64, pc chan string) {
         fields := strings.Split(s, "\t")
         // Fields 0 and 4 are numbers, so they should not be surrounded by single quotes
         s = fmt.Sprintf("(%s, '%s', '%s', '%s', %s, '%s', '%s', '%s', '%s')", fields[0], fields[1], fields[2], fields[3], fields[4], fields[5], fields[6], fields[7], fields[8])
-        c++
-        if c % 10000 == 0 { // Progress indicator
-            fmt.Print("*")
-        }
         pc <- s
         if readBytes - 1 >= to { // Stop when we reach the end of required chunk
             return
@@ -142,7 +137,7 @@ func launchReader (fileName string, from int64, to int64, pc chan string) {
 }
 
 // Writes Product object to the database
-func addRow (db *sql.DB, pc chan string, rowsPerQuery int, i int) {
+func addRow (db *sql.DB, pc chan string, rowsPerQuery int) {
     var err error
     var lastInsertedId int
     var counter int
